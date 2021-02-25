@@ -4,6 +4,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -13,6 +14,7 @@ import org.bukkit.event.player.PlayerLoginEvent
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
+import java.io.File
 import java.io.IOException
 import java.sql.ResultSet
 import java.sql.SQLException
@@ -20,6 +22,7 @@ import java.sql.SQLException
 
 class Man10LoginBonus : JavaPlugin(), Listener {
     var prefix = "&e&l[&d&lMan10LoginBonus&e&l]&f".replace("&".toRegex(), "§")
+    val PLName  = "Man10LoginBonus"
     var data = MySQLManager(this, "Man10LoginBonus")
     override fun onEnable() {
         // Plugin startup logic
@@ -77,6 +80,31 @@ class Man10LoginBonus : JavaPlugin(), Listener {
             if (args.isEmpty()){
                 help(p)
                 return false
+            }
+            if (args[0].equals("addbonus",ignoreCase = true)){
+                if (args.size != 2)return true
+                try {
+                    if (args[1].toInt() !in 1..12){
+                        sender.sendMessage(prefix + "1~12!")
+                        return true
+                    }
+                }catch (e : NumberFormatException){
+                    sender.sendMessage(prefix + "args[1]は数字！")
+                    return true
+                }
+                val inv = Bukkit.createInventory(null,54,"$prefix${args[1]}月の報酬")
+                val con = File("plugins/${PLName}/${args[1]}.yml")
+                if (!con.exists()){
+                    con.createNewFile()
+                    sender.openInventory(inv)
+                }else{
+                    val config = YamlConfiguration.loadConfiguration(con)
+                    for (i in 0..54){
+                        if (config.isSet("saveinv.$i")){
+                            inv.setItem(i,config.getItemStack("saveinv.$i"))
+                        }
+                    }
+                }
             }
             if (args[0].equals("reload", ignoreCase = true)) {
                 if (!sender.hasPermission("man10.loginbonus.reload")) {
@@ -295,7 +323,7 @@ class Man10LoginBonus : JavaPlugin(), Listener {
                             continue
                         }
                         list.add(inv.getItem(i + j)!!)
-                        Utility.inventoryToString(list as Inventory)
+                        config.set("saveinv.$i",list)
                         p.closeInventory()
                     }
                 }

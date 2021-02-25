@@ -29,38 +29,6 @@ object Utility {
         val message = ComponentBuilder(prefix +text).event(hoverEvent).event(clickEvent).create()
         p.spigot().sendMessage(*message)
     }
-    fun inventoryToString(inventory: Inventory): String? {
-        try {
-            val str = ByteArrayOutputStream()
-            val data = BukkitObjectOutputStream(str)
-            data.writeInt(inventory.size)
-            data.writeObject(inventory.contents)
-            for (i in 0 until inventory.size) {
-                data.writeObject(inventory.getItem(i))
-            }
-            data.close()
-            return Base64.getEncoder().encodeToString(str.toByteArray())
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return ""
-    }
-
-    fun stringToInventory(inventoryData: String?): Inventory? {
-        try {
-            val stream = ByteArrayInputStream(Base64.getDecoder().decode(inventoryData))
-            val data = BukkitObjectInputStream(stream)
-            val inventory = Bukkit.createInventory(null, data.readInt(), data.readObject().toString())
-            for (i in 0 until inventory.size) {
-                inventory.setItem(i, data.readObject() as ItemStack)
-            }
-            data.close()
-            return inventory
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return null
-    }
     //prefix付きのメッセージ
     fun sendMessage(player: Player, message: String) {
         player.sendMessage("${prefix} $message")
