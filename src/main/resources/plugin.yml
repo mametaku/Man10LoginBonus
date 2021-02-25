@@ -1,0 +1,8 @@
+name: Man10LoginBonus
+version: @version@
+main: red.man10.man10loginbonus.Man10LoginBonus
+api-version: 1.16
+softdepend:
+  - Man10CommonLibs
+commands:
+  mlb:
