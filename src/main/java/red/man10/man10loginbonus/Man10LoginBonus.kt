@@ -5,10 +5,12 @@ import org.bukkit.Material
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.configuration.file.YamlConfiguration
+import org.bukkit.entity.HumanEntity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.player.PlayerEvent
 import org.bukkit.event.player.PlayerLoginEvent
 import org.bukkit.inventory.ItemStack
@@ -23,7 +25,7 @@ class Man10LoginBonus : JavaPlugin(), Listener {
     var prefix = "&e&l[&d&lMan10LoginBonus&e&l]&f".replace("&".toRegex(), "§")
     val PLName = "Man10LoginBonus"
     var data = MySQLManager(this, "Man10LoginBonus")
-    val list = mutableListOf(2,3,4,5,6, 11,12,13,14,15, 20,21,22,23,24, 29,30,31,32,33, 38,39,40,41,42)
+    val list = mutableListOf(2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 29, 30, 31, 32, 33, 38, 39, 40, 41, 42)
     override fun onEnable() {
         // Plugin startup logic
         saveDefaultConfig()
@@ -136,21 +138,31 @@ class Man10LoginBonus : JavaPlugin(), Listener {
     @EventHandler
     fun InventoryClick(e: InventoryClickEvent) {
         val p = e.whoClicked
-        if (p !is Player) return
         val slot = e.slot
         val month = e.view.title.substring(31, e.view.title.length - 10).toInt()
         val title = "${prefix}${month}月のボーナス報酬設定"
-        val inv = Bukkit.createInventory(null, 54)
         when (e.view.title) {
             title ->
                 if (slot in 47..51) {
-                    for (i in list) {
-                        config.set("saveinv.$i", e.inventory.getItem(i))
-
-                    }
+                    p.closeInventory()
                 }
         }
     }
+
+    @EventHandler
+    fun InventoryCloseEvent(e: InventoryCloseEvent) {
+        val month = e.view.title.substring(31, e.view.title.length - 10).toInt()
+        val con = File("plugins/${PLName}/${month}.yml")
+        if (!con.exists()) {
+            con.createNewFile()
+        } else {
+            val con = YamlConfiguration.loadConfiguration(con)
+            for (i in 0..53) {
+                con.set("saveinv.$i", e.inventory.getItem(i))
+            }
+        }
+    }
+
     fun help(p: CommandSender) {
         p.sendMessage("§d§l====${prefix}§d§l====")
         p.sendMessage("§6/mlb set [month/月] 報酬のセット")
