@@ -5,3 +5,4 @@ mysql:
   pass: pass
   port: 3306
   db: Man10LoginBonuns
+saveinv:
