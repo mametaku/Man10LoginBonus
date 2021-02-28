@@ -1,12 +1,12 @@
 package red.man10.man10loginbonus
 
+import javafx.beans.binding.IntegerBinding
 import org.bson.Document
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.configuration.file.YamlConfiguration
-import org.bukkit.entity.HumanEntity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -14,13 +14,13 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.player.PlayerEvent
 import org.bukkit.event.player.PlayerLoginEvent
+import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
+import org.json.simple.JSONObject
+import org.json.simple.parser.JSONParser
 import java.io.File
-import java.io.IOException
-import java.sql.ResultSet
-import java.sql.SQLException
-import kotlin.jvm.Throws
+import java.util.*
 
 
 class Man10LoginBonus : JavaPlugin(), Listener {
@@ -70,10 +70,20 @@ class Man10LoginBonus : JavaPlugin(), Listener {
         val result = data.queryFind(doc)
         if(result.isEmpty()) {
             doc.append("mcid", player)
-            doc.append("logged_in_time",date)
-            doc.append("count",count)
+            doc.append("logged_in_time", date)
+            doc.append("count", count)
             data.queryInsertOne(doc)
-            }
+        }
+        val result1 = data.queryFind(doc)
+        val parsed: JSONObject = JSONParser().parse(result1[0].toJson()) as JSONObject
+        val beforetime = parsed["logged_in_time"] as Long
+        val oneDateTime = 1000 * 60 * 60 * 24.toLong()
+        if (date - beforetime  >= oneDateTime){
+            count + 1
+            val filter = Document().append("uuid", uuid)
+            val update = Document().append("count", count)
+            data.queryUpdateOne(filter,update)
+        }
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
@@ -84,27 +94,21 @@ class Man10LoginBonus : JavaPlugin(), Listener {
                 return false
             }
             if (args[0].equals("addbonus", ignoreCase = true)) {
-                if (args.size != 2) return true
-                try {
-                    if (args[1].toInt() !in 1..12) {
-                        sender.sendMessage(prefix + "1~12!")
-                        return true
-                    }
-                } catch (e: NumberFormatException) {
-                    sender.sendMessage(prefix + "args[1]は数字！")
-                    return true
-                }
-                val inv = Bukkit.createInventory(null, 54, "$prefix${args[1]}月の報酬")
-                val con = File("plugins/${PLName}/${args[1]}.yml")
+                if (!sender.hasPermission("man10.loginbonus.addbonus")) return false
+                val cal = Calendar.getInstance()
+                val month = cal.get(Calendar.MONTH) + 1
+                Bukkit.broadcastMessage(month.toString())
+                val inv = Bukkit.createInventory(null, 54, "${prefix}${month}月の報酬")
+                val con = File("plugins/${PLName}/${month}.yml")
                 if (!con.exists()) {
                     con.createNewFile()
-                    sender.openInventory(inv)
+                    openbonusinventory(p,inv)
                 } else {
                     val config = YamlConfiguration.loadConfiguration(con)
                     for (i in 0..54) {
                         if (config.isSet("saveinv.$i")) {
                             inv.setItem(i, config.getItemStack("saveinv.$i"))
-                            sender.openInventory(inv)
+                            openbonusinventory(p,inv)
                         }
                     }
                 }
@@ -142,10 +146,25 @@ class Man10LoginBonus : JavaPlugin(), Listener {
     fun InventoryClick(e: InventoryClickEvent) {
         val p = e.whoClicked
         val slot = e.slot
+        val cal = Calendar.getInstance()
+        val month1 = cal.get(Calendar.MONTH) + 1
+        if (e.view.title == "${prefix}${month1}月の報酬"){
+            if (slot in 47..51){
+                val doc = Document()
+                val result1 = data.queryFind(doc)
+                val parsed: JSONObject = JSONParser().parse(result1[0].toJson()) as JSONObject
+                val count = parsed["count"] as Long
+                for (i in list){
+                    p.inventory.addItem(e.view.getItem(i))
+                }
+                p.closeInventory()
+                return
+            }
+        }
+        if (e.view.title.length != 41 && e.view.title.length != 42) return
         val month = e.view.title.substring(31, e.view.title.length - 10).toInt()
-        val title = "${prefix}${month}月のボーナス報酬設定"
         when (e.view.title) {
-            title ->
+            "${prefix}${month}月のボーナス報酬設定" ->
                 if (slot in 47..51) {
                     p.closeInventory()
                 }
@@ -154,7 +173,8 @@ class Man10LoginBonus : JavaPlugin(), Listener {
 
     @EventHandler
     fun InventoryCloseEvent(e: InventoryCloseEvent) {
-        if (e.view.title.length != 41 || e.view.title.length != 42) return
+        Bukkit.broadcastMessage(e.view.title.length.toString())
+        if (e.view.title.length != 41 && e.view.title.length != 42) return
         val month = e.view.title.substring(31, e.view.title.length - 10).toInt()
         val con = File("plugins/Man10LoginBonus/${month}.yml")
         if (!con.exists()) {
@@ -175,6 +195,19 @@ class Man10LoginBonus : JavaPlugin(), Listener {
         p.sendMessage("§6/mlb help ヘルプの表示")
         p.sendMessage("§d============================")
         return
+    }
+
+    fun openbonusinventory(p:Player,inv: Inventory){
+        val select = ItemStack(Material.CLOCK)
+        val name = select.itemMeta
+        name.setDisplayName("§4§lアイテムを取得")
+        select.itemMeta = name
+        inv.setItem(47, select)
+        inv.setItem(48, select)
+        inv.setItem(49, select)
+        inv.setItem(50, select)
+        inv.setItem(51, select)
+        p.openInventory(inv)
     }
 
     fun openSettingInventory(p: Player, month: String) {
