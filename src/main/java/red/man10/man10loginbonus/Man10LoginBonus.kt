@@ -64,24 +64,31 @@ class Man10LoginBonus : JavaPlugin(), Listener {
         val uuid = p?.uniqueId.toString()
         val player = p?.name
         val date = System.currentTimeMillis()
-        val count = 0
+        var count = "0"
         val doc = Document()
         doc.append("uuid", uuid)
         val result = data.queryFind(doc)
         if(result.isEmpty()) {
             doc.append("mcid", player)
-            doc.append("logged_in_time", date)
+            doc.append("logged_in_time", date.toString())
             doc.append("count", count)
             data.queryInsertOne(doc)
         }
         val result1 = data.queryFind(doc)
         val parsed: JSONObject = JSONParser().parse(result1[0].toJson()) as JSONObject
-        val beforetime = parsed["logged_in_time"] as Long
+        val beforetime = parsed["logged_in_time"] as String
         val oneDateTime = 1000 * 60 * 60 * 24.toLong()
-        if (date - beforetime  >= oneDateTime){
-            count + 1
+        if (date - beforetime.toLong()  >= oneDateTime){
+            count = parsed["count"] as String
+            try {
+                var intCount = count.toInt()
+                intCount = intCount++
+                count = intCount.toString()
+            }catch(e: NumberFormatException) {}
             val filter = Document().append("uuid", uuid)
-            val update = Document().append("count", count)
+            val update = Document()
+            update.append("count", count)
+            update.append("logged_in_time",date.toString())
             data.queryUpdateOne(filter,update)
         }
     }
