@@ -1,5 +1,6 @@
 package red.man10.man10loginbonus
 
+import org.bson.Document
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.command.Command
@@ -19,12 +20,13 @@ import java.io.File
 import java.io.IOException
 import java.sql.ResultSet
 import java.sql.SQLException
+import kotlin.jvm.Throws
 
 
 class Man10LoginBonus : JavaPlugin(), Listener {
     var prefix = "&e&l[&d&lMan10LoginBonus&e&l]&f".replace("&".toRegex(), "§")
     val PLName = "Man10LoginBonus"
-    var data = MySQLManager(this, "Man10LoginBonus")
+    var data = MongoDBManager(this, "user_logged_in_time")
     val list = mutableListOf(2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 29, 30, 31, 32, 33, 38, 39, 40, 41, 42)
     override fun onEnable() {
         // Plugin startup logic
@@ -44,13 +46,12 @@ class Man10LoginBonus : JavaPlugin(), Listener {
     }
 
     @EventHandler
-    @Throws(IOException::class)
     fun LoginEvent(event: PlayerLoginEvent?) {
         val config = config
         if (!config.getBoolean("mode")) return
         Bukkit.getScheduler().runTaskAsynchronously(this, Runnable {
             try {
-                getData(event as PlayerEvent?)
+                setData(event as PlayerEvent?)
             } catch (e: Exception) {
                 Bukkit.getLogger().info(e.message)
                 println(e.message)
@@ -58,20 +59,21 @@ class Man10LoginBonus : JavaPlugin(), Listener {
         })
     }
 
-    fun getData(event: PlayerEvent?) {
+    fun setData(event: PlayerEvent?) {
         val p = event?.player
         val uuid = p?.uniqueId.toString()
         val player = p?.name
-        val rs: ResultSet? = data.query("select * from user_logged_in_time where uuid='$uuid';")
-        try {
-            if (rs != null) {
-                data.execute("insert into user_logged_in_time (uuid,player) value ('$uuid','$player');")
+        val date = System.currentTimeMillis()
+        val count = 0
+        val doc = Document()
+        doc.append("uuid", uuid)
+        val result = data.queryFind(doc)
+        if(result.isEmpty()) {
+            doc.append("mcid", player)
+            doc.append("logged_in_time",date)
+            doc.append("count",count)
+            data.queryInsertOne(doc)
             }
-        } catch (throwables: SQLException) {
-            throwables.printStackTrace()
-        } catch (throwables: IOException) {
-            throwables.printStackTrace()
-        }
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
@@ -102,6 +104,7 @@ class Man10LoginBonus : JavaPlugin(), Listener {
                     for (i in 0..54) {
                         if (config.isSet("saveinv.$i")) {
                             inv.setItem(i, config.getItemStack("saveinv.$i"))
+                            sender.openInventory(inv)
                         }
                     }
                 }
@@ -151,14 +154,16 @@ class Man10LoginBonus : JavaPlugin(), Listener {
 
     @EventHandler
     fun InventoryCloseEvent(e: InventoryCloseEvent) {
+        if (e.view.title.length != 41 || e.view.title.length != 42) return
         val month = e.view.title.substring(31, e.view.title.length - 10).toInt()
-        val con = File("plugins/${PLName}/${month}.yml")
+        val con = File("plugins/Man10LoginBonus/${month}.yml")
         if (!con.exists()) {
             con.createNewFile()
         } else {
-            val con = YamlConfiguration.loadConfiguration(con)
+            val configfile = YamlConfiguration.loadConfiguration(con)
             for (i in 0..53) {
-                con.set("saveinv.$i", e.inventory.getItem(i))
+                configfile.set("saveinv.$i", e.inventory.getItem(i))
+                configfile.save(con)
             }
         }
     }
@@ -320,6 +325,7 @@ class Man10LoginBonus : JavaPlugin(), Listener {
                     inv.setItem(num + 36, eleven)
                     inv.setItem(num + 45, eleven)
                 }
+
             }
         }
         if (month == "12") {

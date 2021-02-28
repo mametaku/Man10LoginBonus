@@ -1,8 +1,10 @@
 mode: true
-mysql:
+mongo:
   host: localhost
   user: root
-  pass: pass
-  port: 3306
-  db: Man10LoginBonuns
+  pass: password
+  port: 27017
+  db: template
+  # You can set the uri as you like.
+  uri: "?authSource=admin"
 saveinv:
